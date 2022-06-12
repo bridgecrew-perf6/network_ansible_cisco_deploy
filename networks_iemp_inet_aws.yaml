@@ -1,0 +1,51 @@
+#ansible-playbook -i inventory/hosts playbooks/network_iemp_inet_aws.yaml 
+---
+
+- name: Network backup
+  hosts: xxx
+  connection: network_cli
+
+  vars:
+    git_branch: /opt/xxx
+    
+  tasks:
+
+    - name: Pre Check 
+      cisco.ios.ios_command:
+        commands: 
+          - show ip route vrf inet {{ ip }}
+          - show ip bgp vpnv4 vrf inet {{ ip }}
+      register: output
+
+    - name: Output BGP status to file
+      vars:
+        time: "{{ lookup('pipe', 'date +\"%Y%m%d%H%M%S\"') }}"
+      copy:
+          content: "{{ output.stdout | replace('\\n', '\n') }}" 
+          dest: ~/{{ inventory_hostname }}.pre.{{ time }}.txt
+
+
+    - name: Core network config changes
+      block:
+      - name: Update AWS peering prefixs
+        cisco.ios.ios_config:
+            lines:
+              - ...
+      when: inventory_hostname == "xxx"
+
+    - pause:
+        seconds: 45
+
+    - name: Post Check
+      cisco.ios.ios_command:
+        commands: 
+          - show ip route vrf inet {{ ip }}
+          - show ip bgp vpnv4 vrf inet {{ ip }}
+      register: output
+
+    - name: Save check to file ~/
+      vars:
+        time: "{{ lookup('pipe', 'date +\"%Y%m%d%H%M%S\"') }}"
+      copy:
+          content: "{{ output.stdout | replace('\\n', '\n') }}" 
+          dest: ~/{{ inventory_hostname }}.post.{{ time }}.txt
